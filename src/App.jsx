@@ -130,19 +130,11 @@ function runElection(lists) {
     detail: qualifying.map(l => `${l.name}: ${l.votes.toLocaleString()} votes`).join("\n"),
   });
 
-  const qualifyingVotes = qualifying.reduce((s, l) => s + l.votes, 0);
-  const newQuotient = qualifyingVotes / TOTAL_SEATS;
-
-  if (eliminated.length > 0) {
-    steps.push({
-      title: "Recalculated Quotient",
-      detail: `${qualifyingVotes.toLocaleString()} ÷ ${TOTAL_SEATS} = ${newQuotient.toLocaleString(undefined, { maximumFractionDigits: 2 })}`,
-    });
-  }
-
+  // Use the ORIGINAL quotient (from all valid votes) — Lebanese Law 44/2017.
+  // Eliminated lists' votes are simply wasted; the quotient is NOT recalculated.
   const allocation = qualifying.map(l => {
-    const wholeSeats = Math.floor(l.votes / newQuotient);
-    const remainder = l.votes - wholeSeats * newQuotient;
+    const wholeSeats = Math.floor(l.votes / quotient);
+    const remainder = l.votes - wholeSeats * quotient;
     return { ...l, wholeSeats, remainder, totalSeats: wholeSeats };
   });
 
@@ -152,7 +144,7 @@ function runElection(lists) {
   steps.push({
     title: "Whole Quota Allocation",
     detail: allocation.map(a =>
-      `${a.name}: ${a.votes.toLocaleString()} ÷ ${newQuotient.toLocaleString(undefined, { maximumFractionDigits: 2 })} = ${a.wholeSeats} seat(s) + ${a.remainder.toLocaleString(undefined, { maximumFractionDigits: 0 })} remainder`
+      `${a.name}: ${a.votes.toLocaleString()} ÷ ${quotient.toLocaleString(undefined, { maximumFractionDigits: 2 })} = ${a.wholeSeats} seat(s) + ${a.remainder.toLocaleString(undefined, { maximumFractionDigits: 0 })} remainder`
     ).join("\n"),
   });
 
@@ -252,7 +244,8 @@ function FullListCard({ list, onUpdate }) {
   const updateCandidate = (cIdx, field, value) => {
     const newCandidates = [...list.candidates];
     newCandidates[cIdx] = { ...newCandidates[cIdx], [field]: value };
-    onUpdate({ ...list, candidates: newCandidates });
+    const newSum = newCandidates.reduce((s, c) => s + c.prefVotes, 0);
+    onUpdate({ ...list, candidates: newCandidates, votes: newSum });
   };
 
   return (
@@ -294,18 +287,37 @@ function FullListCard({ list, onUpdate }) {
       </div>
 
       {/* List votes */}
-      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
-        <label style={{ fontSize: 10, color: "#64748b", textTransform: "uppercase", letterSpacing: 1, whiteSpace: "nowrap" }}>
-          List Votes
-        </label>
-        <input
-          type="number"
-          min={0}
-          value={list.votes}
-          onChange={e => onUpdate({ ...list, votes: Math.max(0, parseInt(e.target.value) || 0) })}
-          style={{ ...inputStyle, textAlign: "right", fontSize: 14, fontWeight: 700 }}
-        />
-      </div>
+      {(() => {
+        const candidateSum = list.candidates.reduce((s, c) => s + c.prefVotes, 0);
+        const diverged = list.votes !== candidateSum;
+        return (
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <label style={{ fontSize: 10, color: "#64748b", textTransform: "uppercase", letterSpacing: 1, whiteSpace: "nowrap" }}>
+                List Votes
+              </label>
+              <input
+                type="number"
+                min={0}
+                value={list.votes}
+                onChange={e => onUpdate({ ...list, votes: Math.max(0, parseInt(e.target.value) || 0) })}
+                style={{ ...inputStyle, textAlign: "right", fontSize: 14, fontWeight: 700 }}
+              />
+            </div>
+            {diverged && candidateSum > 0 && (
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
+                <span style={{ fontSize: 9, color: "#64748b" }}>Σ pref: {candidateSum.toLocaleString()}</span>
+                <button
+                  onClick={() => onUpdate({ ...list, votes: candidateSum })}
+                  style={{ fontSize: 9, color: "#fbbf24", background: "none", border: "1px solid #fbbf2433", borderRadius: 4, padding: "1px 6px", cursor: "pointer" }}
+                >
+                  ↻ sync
+                </button>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Candidate rows */}
       <div style={{ fontSize: 9, color: "#475569", display: "grid", gridTemplateColumns: "1fr 90px 60px", gap: 4, marginBottom: 4, padding: "0 2px" }}>
@@ -330,7 +342,8 @@ function FullListCard({ list, onUpdate }) {
                 if (known) {
                   const newCandidates = [...list.candidates];
                   newCandidates[i] = { ...newCandidates[i], name: known.name, prefVotes: known.prefVotes, confession: known.confession };
-                  onUpdate({ ...list, candidates: newCandidates });
+                  const newSum = newCandidates.reduce((s, c) => s + c.prefVotes, 0);
+                  onUpdate({ ...list, candidates: newCandidates, votes: newSum });
                 } else {
                   updateCandidate(i, "name", name);
                 }

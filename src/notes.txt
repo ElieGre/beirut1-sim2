@@ -1,0 +1,9 @@
+put them next to eachother
+
+print to pdf button prints all lists 4 in full page 
+
+comment tab on the election result page to add comments at the bottom under the election results
+
+
+
+save scenarios json
