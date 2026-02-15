@@ -8,7 +8,7 @@ const CONFESSIONS = [
   "Maronite",
   "Greek Orthodox",
   "Greek Catholic",
-  "Christian Minorities",
+  "Minorities",
 ];
 
 const CONFESSION_SEAT_COUNT = {
@@ -17,7 +17,7 @@ const CONFESSION_SEAT_COUNT = {
   "Maronite": 1,
   "Greek Orthodox": 1,
   "Greek Catholic": 1,
-  "Christian Minorities": 1,
+  "Minorities": 1,
 };
 
 const LIST_COLORS = [
@@ -29,34 +29,34 @@ const KNOWN_CANDIDATES = [
   { name: "Nadim Gemayel",       prefVotes: 4425, confession: "Maronite" },
   { name: "Guy Manoukian",       prefVotes: 4043, confession: "Armenian Orthodox" },
   { name: "Asma Andraous",       prefVotes: 917,  confession: "Greek Orthodox" },
-  { name: "Antoine Seryani",     prefVotes: 558,  confession: "Greek Catholic" },
-  { name: "Jean Talozian",       prefVotes: 500,  confession: "Armenian Orthodox" },
-  { name: "Najib Lian",          prefVotes: 391,  confession: "Maronite" },
+  { name: "Antoine Seryani",     prefVotes: 558,  confession: "Minorities" },
+  { name: "Jean Talozian",       prefVotes: 500,  confession: "Armenian Catholic" },
+  { name: "Najib Lian",          prefVotes: 391,  confession: "Greek Catholic" },
   { name: "Annie Sevrian",       prefVotes: 277,  confession: "Armenian Orthodox" },
   { name: "Leon Semerjian",      prefVotes: 208,  confession: "Armenian Orthodox" },
   { name: "Ghassan Hasbani",     prefVotes: 7080, confession: "Greek Orthodox" },
-  { name: "Michel Pharaon",      prefVotes: 3214, confession: "Greek Orthodox" },
-  { name: "Jihad Pakradouni",    prefVotes: 2186, confession: "Armenian Catholic" },
+  { name: "Michel Pharaon",      prefVotes: 3214, confession: "Greek Catholic" },
+  { name: "Jihad Pakradouni",    prefVotes: 2186, confession: "Armenian Orthodox" },
   { name: "Georges Chehwan",     prefVotes: 1684, confession: "Maronite" },
   { name: "Aram Malyan",         prefVotes: 1068, confession: "Armenian Orthodox" },
-  { name: "Elie Charabchi",      prefVotes: 727,  confession: "Maronite" },
-  { name: "Fadi Nahhas",         prefVotes: 200,  confession: "Greek Orthodox" },
+  { name: "Elie Charabchi",      prefVotes: 727,  confession: "Minorities" },
+  { name: "Fadi Nahhas",         prefVotes: 200,  confession: "Greek Catholic" },
   { name: "Paula Yacoubian",     prefVotes: 3524, confession: "Armenian Orthodox" },
-  { name: "Ziad Abi Shaker",     prefVotes: 3142, confession: "Greek Orthodox" },
-  { name: "Ziad Abss",           prefVotes: 514,  confession: "Maronite" },
-  { name: "Cynthia Zarazir",     prefVotes: 486,  confession: "Armenian Orthodox" },
-  { name: "Brigitte Chelbian",   prefVotes: 129,  confession: "Armenian Orthodox" },
+  { name: "Ziad Abi Shaker",     prefVotes: 3142, confession: "Maronite" },
+  { name: "Ziad Abss",           prefVotes: 514,  confession: "Greek Orthodox" },
+  { name: "Cynthia Zarazir",     prefVotes: 486,  confession: "Minorities" },
+  { name: "Brigitte Chelbian",   prefVotes: 129,  confession: "Armenian Catholic" },
   { name: "Maggie Nanijian",     prefVotes: 80,   confession: "Armenian Orthodox" },
-  { name: "Charles Fakhouri",    prefVotes: 64,   confession: "Greek Orthodox" },
+  { name: "Charles Fakhouri",    prefVotes: 64,   confession: "Greek Catholic" },
   { name: "Diana Ohanian",       prefVotes: 63,   confession: "Armenian Orthodox" },
   { name: "Naji Hayeck",         prefVotes: 4781, confession: "Maronite" },
   { name: "Hagop Terzian",       prefVotes: 2647, confession: "Armenian Orthodox" },
   { name: "Alexander Matossian", prefVotes: 2216, confession: "Armenian Orthodox" },
   { name: "Elie Al Aswad",       prefVotes: 303,  confession: "Maronite" },
   { name: "George Jowflikian",   prefVotes: 286,  confession: "Armenian Orthodox" },
-  { name: "Chamoun Chamoun",     prefVotes: 230,  confession: "Maronite" },
+  { name: "Chamoun Chamoun",     prefVotes: 230,  confession: "Minorities" },
   { name: "Carla Boutros",       prefVotes: 137,  confession: "Greek Orthodox" },
-  { name: "Serge Malkonian",     prefVotes: 95,   confession: "Armenian Orthodox" },
+  { name: "Serge Malkonian",     prefVotes: 95,   confession: "Armenian Catholic" },
 ];
 
 let globalId = 100;
@@ -76,7 +76,7 @@ const makeFullList = (name, color) => ({
     { id: uid(), name: "", confession: "Maronite", prefVotes: 0 },
     { id: uid(), name: "", confession: "Greek Orthodox", prefVotes: 0 },
     { id: uid(), name: "", confession: "Greek Catholic", prefVotes: 0 },
-    { id: uid(), name: "", confession: "Christian Minorities", prefVotes: 0 },
+    { id: uid(), name: "", confession: "Minorities", prefVotes: 0 },
   ],
 });
 
@@ -357,7 +357,7 @@ function FullListCard({ list, onUpdate }) {
               style={{ ...inputStyle, fontSize: 9, padding: "5px 2px", cursor: "pointer" }}
             >
               {CONFESSIONS.map(cf => (
-                <option key={cf} value={cf}>{cf.replace("Armenian ", "Arm.").replace("Christian ", "Chr.").replace("Greek ", "Gr.")}</option>
+                <option key={cf} value={cf}>{cf.replace("Armenian ", "Arm.").replace("Greek ", "Gr.")}</option>
               ))}
             </select>
             <input
@@ -570,7 +570,7 @@ function ResultsPanel({ result, comments, setComments }) {
                               {c.name || `(unnamed)`}
                             </span>
                             <span style={{ fontSize: 9, color: elected ? "#86efac" : "#475569" }}>
-                              {c.confession.replace("Armenian ", "Arm.").replace("Christian ", "Chr.").replace("Greek ", "Gr.")}
+                              {c.confession.replace("Armenian ", "Arm.").replace(" ", "Chr.").replace("Greek ", "Gr.")}
                             </span>
                             <span style={{ fontSize: 11, color: elected ? "#4ade80" : "#475569", textAlign: "right", fontWeight: elected ? 700 : 400 }}>
                               {c.prefVotes.toLocaleString()}
@@ -964,7 +964,7 @@ export default function App() {
               <span style={{ fontSize: 10, color: "#64748b", fontWeight: 600, textTransform: "uppercase", letterSpacing: 1 }}>Seats:</span>
               {CONFESSIONS.map(c => (
                 <span key={c} style={{ fontSize: 11, color: "#94a3b8", padding: "2px 8px", background: "#ffffff08", borderRadius: 4 }}>
-                  {c.replace("Armenian ", "Arm.").replace("Christian ", "Chr.").replace("Greek ", "Gr.")}: <strong style={{ color: "#e2e8f0" }}>{CONFESSION_SEAT_COUNT[c]}</strong>
+                  {c.replace("Armenian ", "Arm.").replace("Greek ", "Gr.")}: <strong style={{ color: "#e2e8f0" }}>{CONFESSION_SEAT_COUNT[c]}</strong>
                 </span>
               ))}
             </div>
