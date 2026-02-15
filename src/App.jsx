@@ -198,7 +198,7 @@ function runElection(lists) {
     });
   }
 
-  return { steps, winners, allocation, quotient: newQuotient, eliminated };
+  return { steps, winners, allocation, quotient, eliminated };
 }
 
 // ——————— STYLES ———————
