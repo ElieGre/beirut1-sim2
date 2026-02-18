@@ -98,43 +98,59 @@ const DEFAULT_LISTS = [
   makeFullList("List 6", LIST_COLORS[5]),
 ];
 
-// ——————— ELECTION ENGINE ———————
+/// ——————— ELECTION ENGINE — Beirut 1 Only (Law 44/2017, Article 99) ———————
 
 function runElection(lists) {
   const validVotes = lists.reduce((s, l) => s + l.votes, 0);
-  if (validVotes === 0 || lists.length === 0) return { error: "No valid votes cast.", steps: [] };
+  if (validVotes === 0 || lists.length === 0)
+    return { error: "No valid votes cast.", steps: [] };
 
   const steps = [];
-  steps.push({ title: "Total Valid Votes", detail: `${validVotes.toLocaleString()} valid votes across ${lists.length} list(s).` });
-
-  const quotient = validVotes / TOTAL_SEATS;
   steps.push({
-    title: "Electoral Quotient (Hare Quota)",
-    detail: `${validVotes.toLocaleString()} ÷ ${TOTAL_SEATS} = ${quotient.toLocaleString(undefined, { maximumFractionDigits: 2 })}`,
+    title: "Total Valid Votes",
+    detail: `${validVotes.toLocaleString()} valid votes across ${lists.length} list(s).`,
   });
 
-  const qualifying = lists.filter(l => l.votes >= quotient);
-  const eliminated = lists.filter(l => l.votes < quotient);
+  // STEP 1: First quotient — only used to filter out lists below threshold
+  const firstQuotient = validVotes / TOTAL_SEATS;
+  steps.push({
+    title: "First Electoral Quotient (Threshold)",
+    detail: `${validVotes.toLocaleString()} ÷ ${TOTAL_SEATS} = ${firstQuotient.toLocaleString(undefined, { maximumFractionDigits: 2 })}`,
+  });
+
+  const qualifying = lists.filter((l) => l.votes >= firstQuotient);
+  const eliminated = lists.filter((l) => l.votes < firstQuotient);
 
   if (eliminated.length > 0) {
     steps.push({
-      title: "Lists Eliminated (Below Quota)",
-      detail: eliminated.map(l => `${l.name}: ${l.votes.toLocaleString()} votes (needs ${Math.ceil(quotient).toLocaleString()})`).join("\n"),
+      title: "Lists Eliminated (Below First Quotient)",
+      detail: eliminated
+        .map((l) => `${l.name}: ${l.votes.toLocaleString()} votes (needed ${Math.ceil(firstQuotient).toLocaleString()})`)
+        .join("\n"),
     });
   }
 
-  if (qualifying.length === 0) return { error: "No list reached the electoral quotient.", steps };
+  if (qualifying.length === 0)
+    return { error: "No list reached the electoral quotient.", steps };
 
   steps.push({
     title: "Qualifying Lists",
-    detail: qualifying.map(l => `${l.name}: ${l.votes.toLocaleString()} votes`).join("\n"),
+    detail: qualifying.map((l) => `${l.name}: ${l.votes.toLocaleString()} votes`).join("\n"),
   });
 
-  // Use the ORIGINAL quotient (from all valid votes) — Lebanese Law 44/2017.
-  // Eliminated lists' votes are simply wasted; the quotient is NOT recalculated.
-  const allocation = qualifying.map(l => {
-    const wholeSeats = Math.floor(l.votes / quotient);
-    const remainder = l.votes - wholeSeats * quotient;
+  // STEP 2: Second quotient — recalculated from qualifying lists only
+  const qualifyingVotes = qualifying.reduce((s, l) => s + l.votes, 0);
+  const secondQuotient = qualifyingVotes / TOTAL_SEATS;
+
+  steps.push({
+    title: "Second Electoral Quotient (Seat Allocation)",
+    detail: `${qualifyingVotes.toLocaleString()} ÷ ${TOTAL_SEATS} = ${secondQuotient.toLocaleString(undefined, { maximumFractionDigits: 2 })}`,
+  });
+
+  // STEP 3: Whole seats + largest remainder using second quotient
+  const allocation = qualifying.map((l) => {
+    const wholeSeats = Math.floor(l.votes / secondQuotient);
+    const remainder = l.votes - wholeSeats * secondQuotient;
     return { ...l, wholeSeats, remainder, totalSeats: wholeSeats };
   });
 
@@ -143,62 +159,101 @@ function runElection(lists) {
 
   steps.push({
     title: "Whole Quota Allocation",
-    detail: allocation.map(a =>
-      `${a.name}: ${a.votes.toLocaleString()} ÷ ${quotient.toLocaleString(undefined, { maximumFractionDigits: 2 })} = ${a.wholeSeats} seat(s) + ${a.remainder.toLocaleString(undefined, { maximumFractionDigits: 0 })} remainder`
-    ).join("\n"),
+    detail: allocation
+      .map((a) =>
+        `${a.name}: ${a.votes.toLocaleString()} ÷ ${secondQuotient.toLocaleString(undefined, { maximumFractionDigits: 2 })} = ${a.wholeSeats} seat(s) + ${a.remainder.toLocaleString(undefined, { maximumFractionDigits: 0 })} remainder`
+      )
+      .join("\n"),
   });
 
   if (remainingSeats > 0) {
-    const sorted = [...allocation].sort((a, b) => b.remainder - a.remainder);
+    const sorted = [...allocation].sort((a, b) => {
+      if (b.remainder !== a.remainder) return b.remainder - a.remainder;
+      return b.wholeSeats - a.wholeSeats; // tiebreaker: more whole seats wins
+    });
     for (let i = 0; i < remainingSeats && i < sorted.length; i++) {
       sorted[i].totalSeats += 1;
     }
     steps.push({
       title: `Largest Remainder (+${remainingSeats} seat${remainingSeats > 1 ? "s" : ""})`,
-      detail: sorted.slice(0, remainingSeats).map(a => `${a.name}: remainder ${a.remainder.toLocaleString(undefined, { maximumFractionDigits: 0 })} → +1 seat`).join("\n"),
+      detail: sorted
+        .slice(0, remainingSeats)
+        .map((a) => `${a.name}: remainder ${a.remainder.toLocaleString(undefined, { maximumFractionDigits: 0 })} → +1 seat`)
+        .join("\n"),
     });
   }
 
   steps.push({
     title: "Seats Per List",
-    detail: allocation.map(a => `${a.name}: ${a.totalSeats} seat(s)`).join("\n"),
+    detail: allocation.map((a) => `${a.name}: ${a.totalSeats} seat(s)`).join("\n"),
   });
 
+  // STEP 4: Comprehensive candidate list ranked by pref vote PERCENTAGE
+  // Beirut 1 has no minor constituencies, so denominator = total pref votes across all qualifying lists
+  const totalPrefVotes = allocation.reduce(
+    (s, a) => s + (a.candidates || []).reduce((s2, c) => s2 + c.prefVotes, 0),
+    0
+  );
+
+  const allCandidates = [];
+  for (const alloc of allocation) {
+    for (const c of alloc.candidates || []) {
+      allCandidates.push({
+        ...c,
+        listId: alloc.id,
+        listName: alloc.name,
+        listColor: alloc.color,
+        listTotalSeats: alloc.totalSeats,
+        prefPercentage: c.prefVotes / (totalPrefVotes || 1),
+      });
+    }
+  }
+
+  allCandidates.sort((a, b) => b.prefPercentage - a.prefPercentage);
+
+  // Walk the single ranked list — seat a candidate only if:
+  //   1. Their confession quota is not full
+  //   2. Their list still has seats left
   const winners = [];
   const confessionalFilled = {};
-  CONFESSIONS.forEach(c => confessionalFilled[c] = 0);
+  CONFESSIONS.forEach((c) => (confessionalFilled[c] = 0));
+  const listSeatsFilled = {};
+  allocation.forEach((a) => (listSeatsFilled[a.id] = 0));
 
-  for (const alloc of allocation) {
-    if (alloc.totalSeats === 0) continue;
-    const listCandidates = alloc.candidates || [];
-    const ranked = [...listCandidates].sort((a, b) => b.prefVotes - a.prefVotes);
-    let seatsToFill = alloc.totalSeats;
+  for (const candidate of allCandidates) {
+    if (winners.length >= TOTAL_SEATS) break;
 
-    for (const candidate of ranked) {
-      if (seatsToFill <= 0) break;
-      const conf = candidate.confession;
-      const maxForConf = CONFESSION_SEAT_COUNT[conf] || 0;
-      if (confessionalFilled[conf] >= maxForConf) continue;
-      confessionalFilled[conf]++;
-      seatsToFill--;
-      winners.push({ ...candidate, listName: alloc.name, listColor: alloc.color, listId: alloc.id });
-    }
+    const conf = candidate.confession;
+    if (confessionalFilled[conf] >= (CONFESSION_SEAT_COUNT[conf] || 0)) continue;
+    if (listSeatsFilled[candidate.listId] >= candidate.listTotalSeats) continue;
+
+    confessionalFilled[conf]++;
+    listSeatsFilled[candidate.listId]++;
+    winners.push({ ...candidate });
   }
 
   steps.push({
     title: "Elected Candidates",
-    detail: winners.map(w => `${w.name || "(unnamed)"} (${w.confession}) — ${w.listName} — ${w.prefVotes.toLocaleString()} pref. votes`).join("\n"),
+    detail: winners
+      .map((w) =>
+        `${w.name || "(unnamed)"} (${w.confession}) — ${w.listName} — ${(w.prefPercentage * 100).toFixed(2)}% (${w.prefVotes.toLocaleString()} pref. votes)`
+      )
+      .join("\n"),
   });
 
-  const unfilledConfessions = CONFESSIONS.filter(c => confessionalFilled[c] < CONFESSION_SEAT_COUNT[c]);
+  const unfilledConfessions = CONFESSIONS.filter(
+    (c) => confessionalFilled[c] < CONFESSION_SEAT_COUNT[c]
+  );
   if (unfilledConfessions.length > 0) {
     steps.push({
       title: "⚠️ Unfilled Confessional Seats",
-      detail: unfilledConfessions.map(c => `${c}: ${confessionalFilled[c]}/${CONFESSION_SEAT_COUNT[c]} filled`).join("\n"),
+      detail: unfilledConfessions
+        .map((c) => `${c}: ${confessionalFilled[c]}/${CONFESSION_SEAT_COUNT[c]} filled`)
+        .join("\n"),
     });
   }
 
-  return { steps, winners, allocation, quotient, eliminated };
+  return { steps, winners, allocation, firstQuotient, secondQuotient, eliminated };
 }
 
 // ——————— STYLES ———————
